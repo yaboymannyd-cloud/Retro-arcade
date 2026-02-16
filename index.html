@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Neon 8-Bit Arcade</title>
+<style>
+body{
+  margin:0;
+  background:black;
+  color:white;
+  font-family:monospace;
+  text-align:center;
+}
+h1{
+  color:hotpink;
+  text-shadow:0 0 10px cyan,0 0 20px magenta;
+}
+.menu button{
+  display:block;
+  margin:15px auto;
+  padding:15px 30px;
+  font-size:20px;
+  background:black;
+  border:3px solid cyan;
+  color:cyan;
+  cursor:pointer;
+}
+canvas{
+  background:#111;
+  display:none;
+  margin:20px auto;
+  border:4px solid hotpink;
+}
+#scoreBoard{
+  font-size:20px;
+  margin-top:10px;
+  display:none;
+}
+#leaderboard{
+  margin-top:20px;
+  color:cyan;
+  font-size:16px;
+}
+.controls{
+  display:none;
+}
+button{
+  padding:10px;
+  margin:5px;
+  cursor:pointer;
+}
+#pongOptions{
+  display:none;
+  margin-top:20px;
+}
+#pongOptions button{
+  margin:10px;
+}
+</style>
+</head>
+<body>
+
+<div class="menu" id="menu">
+  <h1>🌈 NEON ARCADE 🌈</h1>
+  <div id="usernameDiv"></div>
+  <button onclick="startGame('snake')">🐍 Snake</button>
+  <button onclick="pongMenu()">🏓 Multiplayer Pong</button>
+  <button onclick="startGame('pacman')">👻 Pac-Man</button>
+  <button onclick="startGame('tetris')">🟪 Tetris</button>
+  <button onclick="addGame()">➕ Add Game</button>
+  <div id="leaderboard">
+    <h3>Leaderboard</h3>
+    <div id="snakeLB">Snake: 0</div>
+    <div id="pongLB">Pong: 0</div>
+    <div id="pacmanLB">Pac-Man: 0</div>
+    <div id="tetrisLB">Tetris: 0</div>
+  </div>
+</div>
+
+<div id="pongOptions">
+  <h2>Multiplayer Pong</h2>
+  <button onclick="createPongGame()">🆕 Create Game</button>
+  <button onclick="joinPongGame()">🔗 Join Game</button>
+  <button onclick="backToMenu()">⬅ Back</button>
+</div>
+
+<div id="scoreBoard">Score: 0</div>
+<canvas id="game" width="600" height="400"></canvas>
+
+<div class="controls" id="controls">
+  <button onclick="goMenu()">⬅ Back to Menu</button>
+</div>
+
+<script>
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d");
+let interval;
+let currentGame;
+let score=0;
+let pongGameCode=null;
+let username="Player";
+
+// Prompt username
+username = prompt("Enter your username:") || "Player";
+document.getElementById("usernameDiv").innerText = "👤 " + username;
+
+// Leaderboard with username
+let leaderboard = {
+  snake:{name:"-",score:0},
+  pong:{name:"-",score:0},
+  pacman:{name:"-",score:0},
+  tetris:{name:"-",score:0}
+};
+
+function updateLeaderboard(game){
+  if(score>leaderboard[game].score){
+    leaderboard[game]={name:username,score:score};
+  }
+  document.getElementById("snakeLB").innerText="Snake: "+leaderboard.snake.name+" "+leaderboard.snake.score;
+  document.getElementById("pongLB").innerText="Pong: "+leaderboard.pong.name+" "+leaderboard.pong.score;
+  document.getElementById("pacmanLB").innerText="Pac-Man: "+leaderboard.pacman.name+" "+leaderboard.pacman.score;
+  document.getElementById("tetrisLB").innerText="Tetris: "+leaderboard.tetris.name+" "+leaderboard.tetris.score;
+}
+
+function updateScore(){
+  document.getElementById("scoreBoard").innerText="Score: "+score;
+}
+
+function startGame(game){
+  clearInterval(interval);
+  document.onkeydown=null;
+  canvas.ontouchmove=null;
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  document.getElementById("menu").style.display="none";
+  document.getElementById("pongOptions").style.display="none";
+  canvas.style.display="block";
+  document.getElementById("scoreBoard").style.display="block";
+  document.getElementById("controls").style.display="block";
+
+  currentGame=game;
+  score=0;
+  updateScore();
+
+  if(game==="snake") snakeGame();
+  if(game==="pong") pongGame();
+  if(game==="pacman") pacmanGame();
+  if(game==="tetris") tetrisGame();
+}
+
+function goMenu(){
+  clearInterval(interval);
+  document.onkeydown=null;
+  canvas.ontouchmove=null;
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  canvas.style.display="none";
+  document.getElementById("scoreBoard").style.display="none";
+  document.getElementById("controls").style.display="none";
+  document.getElementById("menu").style.display="block";
+  document.getElementById("pongOptions").style.display="none";
+  updateLeaderboard(currentGame);
+}
+
+function addGame(){
+  let name = prompt("Enter new game name or link:");
+  if(name) alert("Feature coming soon! You typed: " + name);
+}
+
+// ---------------- Pong Menu & Multiplayer ----------------
+function pongMenu(){
+  document.getElementById("menu").style.display="none";
+  document.getElementById("pongOptions").style.display="block";
+}
+
+function backToMenu(){
+  document.getElementById("pongOptions").style.display="none";
+  document.getElementById("menu").style.display="block";
+}
+
+function createPongGame(){
+  pongGameCode = Math.floor(1000 + Math.random()*9000); // 4-digit code
+  alert("Your game code is: "+pongGameCode+"\nShare it with your friend!");
+  startGame('pong'); 
+}
+
+function joinPongGame(){
+  let code = prompt("Enter game code to join:");
+  if(code == pongGameCode){
+    alert("Joined game "+code+"!"); 
+    startGame('pong'); 
+  } else {
+    alert("Game code not found or incorrect.");
+  }
+}
+
+// ---------------- Snake ----------------
+function snakeGame(){
+  const grid=20;
+  let snake=[{x:10,y:10}];
+  let food={x:15,y:15};
+  let dx=grid, dy=0;
+
+  document.onkeydown=function(e){
+    if(e.key==="ArrowUp" && dy===0){dx=0;dy=-grid;}
+    if(e.key==="ArrowDown" && dy===0){dx=0;dy=grid;}
+    if(e.key==="ArrowLeft" && dx===0){dx=-grid;dy=0;}
+    if(e.key==="ArrowRight" && dx===0){dx=grid;dy=0;}
+  };
+  canvas.ontouchmove=function(e){
+    let touchY=e.touches[0].clientY;
+    let touchX=e.touches[0].clientX;
+    dx = (touchX > snake[0].x) ? grid : (touchX < snake[0].x) ? -grid : dx;
+    dy = (touchY > snake[0].y) ? grid : (touchY < snake[0].y) ? -grid : dy;
+  };
+
+  interval=setInterval(()=>{
+    ctx.fillStyle="#111";
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+
+    let head={x:snake[0].x+dx, y:snake[0].y+dy};
+    let headX=Math.floor(head.x/grid);
+    let headY=Math.floor(head.y/grid);
+    let foodX=Math.floor(food.x/grid);
+    let foodY=Math.floor(food.y/grid);
+
+    snake.unshift(head);
+
+    if(headX===foodX && headY===foodY){
+      score++; updateScore();
+      food={x:Math.floor(Math.random()*30)*grid, y:Math.floor(Math.random()*20)*grid};
+    } else snake.pop();
+
+    if(head.x<0||head.x>=canvas.width||head.y<0||head.y>=canvas.height||snake.slice(1).some(s=>s.x===head.x&&s.y===head.y)){
+      alert("Game Over! Score: "+score);
+      goMenu();
+      return;
+    }
+
+    ctx.fillStyle="red";
+    ctx.fillRect(food.x,food.y,grid,grid);
+    ctx.fillStyle="purple";
+    snake.forEach(s=>ctx.fillRect(s.x,s.y,grid,grid));
+  },100);
+}
+
+// ---------------- Pong ----------------
+function pongGame(){
+  let paddle1=150, paddle2=150;
+  let ball={x:300,y:200,dx:5,dy:5};
+  let score1=0, score2=0;
+  const paddleSpeed=40;
+
+  document.onkeydown=function(e){
+    if(e.key==="w") paddle1-=paddleSpeed;
+    if(e.key==="s") paddle1+=paddleSpeed;
+    if(e.key==="ArrowUp") paddle2-=paddleSpeed;
+    if(e.key==="ArrowDown") paddle2+=paddleSpeed;
+  };
+  canvas.ontouchmove=function(e){
+    let touchY=e.touches[0].clientY;
+    paddle1=touchY-50;
+  };
+
+  interval=setInterval(()=>{
+    ctx.fillStyle="#111";
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+
+    ball.x+=ball.dx;
+    ball.y+=ball.dy;
+    if(ball.y<0||ball.y>canvas.height) ball.dy*=-1;
+
+    if(ball.x<30 && ball.y>paddle1 && ball.y<paddle1+100){ ball.dx*=-1; score1++; updateScore();}
+    if(ball.x>570 && ball.y>paddle2 && ball.y<paddle2+100){ ball.dx*=-1; score2++; updateScore();}
+
+    if(score1>=5){ alert("Player 1 Wins!"); goMenu();}
+    if(score2>=5){ alert("Player 2 Wins!"); goMenu();}
+    if(ball.x<0){ alert("Player 2 Wins!"); goMenu();}
+    if(ball.x>canvas.width){ alert("Player 1 Wins!"); goMenu();}
+
+    ctx.fillStyle="cyan";
+    ctx.fillRect(10,paddle1,10,100);
+    ctx.fillRect(580,paddle2,10,100);
+
+    ctx.fillStyle="white";
+    ctx.fillRect(ball.x,ball.y,15,15);
+  },30);
+}
+
+// ---------------- Pac-Man ----------------
+function pacmanGame(){
+  let pac={x:50,y:50,size:20};
+  let dx=0,dy=0;
+  let dots=[];
+  let ghosts=[{x:300,y:200},{x:500,y:100}];
+
+  for(let i=0;i<30;i++){
+    for(let j=0;j<20;j++){
+      dots.push({x:i*20,y:j*20});
+    }
+  }
+
+  document.onkeydown=function(e){
+    if(e.key==="ArrowUp"){dx=0;dy=-2;}
+    if(e.key==="ArrowDown"){dx=0;dy=2;}
+    if(e.key==="ArrowLeft"){dx=-2;dy=0;}
+    if(e.key==="ArrowRight"){dx=2;dy=0;}
+  };
+
+  interval=setInterval(()=>{
+    ctx.fillStyle="#111";
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+
+    pac.x+=dx; pac.y+=dy;
+    if(pac.x<0) pac.x=0;
+    if(pac.x>canvas.width-pac.size) pac.x=canvas.width-pac.size;
+    if(pac.y<0) pac.y=0;
+    if(pac.y>canvas.height-pac.size) pac.y=canvas.height-pac.size;
+
+    ctx.fillStyle="white";
+    dots=dots.filter(d=>{
+      if(Math.abs(d.x-pac.x)<10 && Math.abs(d.y-pac.y)<10){ score++; return false; }
+      return true;
+    });
+    dots.forEach(d=>ctx.fillRect(d.x+8,d.y+8,4,4));
+    updateScore();
+
+    ctx.fillStyle="red";
+    ghosts.forEach(g=>{
+      g.x += (pac.x>g.x)?1:(pac.x<g.x)?-1:0;
+      g.y += (pac.y>g.y)?1:(pac.y<g.y)?-1:0;
+      ctx.fillRect(g.x,g.y,20,20);
+      if(Math.abs(g.x-pac.x)<20 && Math.abs(g.y-pac.y)<20){ alert("Game Over! Score: "+score); goMenu();}
+    });
+
+    ctx.fillStyle="yellow";
+    ctx.fillRect(pac.x,pac.y,pac.size,pac.size);
+  },30);
+}
+
+// ---------------- Tetris Fixed ----------------
+function tetrisGame() {
+  const rows = 20, cols = 12, size = 20;
+  const shapes = [
+    [[1,1,1,1]], // I
+    [[1,1],[1,1]], // O
+    [[0,1,0],[1,1,1]], // T
+    [[0,1,1],[1,1,0]], // S
+    [[1,1,0],[0,1,1]], // Z
+    [[1,0,0],[1,1,1]], // J
+    [[0,0,1],[1,1,1]]  // L
+  ];
+  
+  let board = Array.from({length: rows}, () => Array(cols).fill(0));
+  let block = {x: 4, y: 0, shape: shapes[Math.floor(Math.random() * shapes.length)], color: "purple"};
+
+  function drawBoard() {
+    ctx.fillStyle = "purple";
+    for (let y = 0; y < rows; y++) {
+      for (let x = 0; x < cols; x++) {
+        if (board[y][x]) ctx.fillRect(x * size, y * size, size, size);
+      }
+    }
+  }
+
+  function drawBlock() {
+    ctx.fillStyle = block.color;
+    block.shape.forEach((row, ry) => {
+      row.forEach((val, rx) => {
+        if (val) ctx.fillRect((block.x + rx) * size, (block.y + ry) * size, size, size);
+      });
+    });
+  }
+
+  function collision(dx = 0, dy = 0, shape = block.shape) {
+    for (let y = 0; y < shape.length; y++) {
+      for (let x = 0; x < shape[y].length; x++) {
+        if (shape[y][x]) {
+          let nx = block.x + x + dx;
+          let ny = block.y + y + dy;
+          if (nx < 0 || nx >= cols || ny >= rows || (ny >=0 && board[ny][nx])) return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  function lockBlock() {
+    block.shape.forEach((row, ry) => {
+      row.forEach((val, rx) => {
+        if (val && block.y + ry >= 0) board[block.y + ry][block.x + rx] = 1;
+      });
+    });
+    score++; updateScore();
+    block = {x: 4, y: 0, shape: shapes[Math.floor(Math.random() * shapes.length)], color: "purple"};
+    if (collision()) { alert("Game Over! Score: " + score); goMenu(); }
+  }
+
+  function rotate(shape) {
+    return shape[0].map((_, i) => shape.map(row => row[i]).reverse());
+  }
+
+  document.onkeydown=function(e){
+    if (e.key==="ArrowLeft" && !collision(-1,0)) block.x--;
+    if (e.key==="ArrowRight" && !collision(1,0)) block.x++;
+    if (e.key==="ArrowDown") { if(!collision(0,1)) block.y++; else lockBlock(); }
+    if (e.key==="r"||e.key==="R"){ let rotated=rotate(block.shape); if(!collision(0,0,rotated)) block.shape=rotated;}
+  }
+
+  interval=setInterval(()=>{
+    ctx.fillStyle="#111";
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+
+    if(!collision(0,1)) block.y++;
+    else lockBlock();
+
+    drawBoard();
+    drawBlock();
+  },500);
+}
+</script>
+</body>
+</html>
